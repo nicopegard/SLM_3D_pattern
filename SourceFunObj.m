@@ -1,6 +1,18 @@
-function [loss, df ] = SourceFunObj( phase_source, z, nfocus, lambda, ps, focal_SLM, Nx, Ny, thresholdh, thresholdl, maskFun,  useGPU, ratio1, ratio2)
+function [loss, df ] = SourceFunObj( phase_source, z, Nx, Ny, thresholdh, thresholdl, maskFun, fresnelKernelFun, useGPU, ratio1, ratio2)
 %FUNOBJ Summary of this function goes here
 %   Detailed explanation goes here
+
+
+
+
+if useGPU
+dfsource = zeros(Nx, Ny, 'gpuArray');
+dfphase = zeros(Nx, Ny, 'gpuArray');
+phase_source = gpuArray(phase_source);
+else
+dfsource = zeros(Nx, Ny);
+dfphase = zeros(Nx, Ny);
+end
 
 phase = reshape(phase_source(1:Nx*Ny), [Nx, Ny]);
 source = reshape(phase_source(Nx*Ny+1:end), [Nx, Ny]);
@@ -9,20 +21,10 @@ objectField = exp(1i * phase);
 %objectField = phase;
 loss = 0;
 
-
-if useGPU
-dfsource = zeros(Nx, Ny, 'gpuArray');
-dfphase = zeros(Nx, Ny, 'gpuArray');
-objectField = gpuArray(objectField);
-else
-dfsource = zeros(Nx, Ny);
-dfphase = zeros(Nx, Ny);
-end
-
-
 for i = 1 : numel(z)
     mask = maskFun(z(i));   
-    HStack = GenerateFresnelPropagationStack(Nx, Ny, z(i)-z(nfocus), lambda, ps, focal_SLM);
+    HStack = fresnelKernelFun(i);
+    %HStack = GenerateFresnelPropagationStack(Nx, Ny, z(i)-z(nfocus), lambda, ps, focal_SLM, useGPU);
     fieldz = fftshift(fft2(objectField .* HStack));
     coherent_spectral = fft2(ifftshift(abs(fieldz.^2)));
     source_spectral = fft2(source);
@@ -31,9 +33,6 @@ for i = 1 : numel(z)
 
     maskh = mask .* (imagez < thresholdh);
     maskl = (1-mask) .* (imagez > thresholdl);
-    
-    
-
     
     diffh = maskh .* (imagez - thresholdh);
     diffl = maskl .* (imagez - thresholdl);
@@ -61,11 +60,13 @@ end
 %df = df .* (1i * intensity * exp(1i*phase));
 
 df = zeros(2*Nx*Ny, 1);
-loss = gather(loss);
 dfphase = -real(dfphase) .* sin(phase) + imag(dfphase).*cos(phase);
-df(1:Nx*Ny) = gather(dfphase(:)) * ratio1;
-%dfsource = ((dfsource + source) > 0) .* dfsource ;
-df(Nx*Ny+1:end) = gather(dfsource(:)* ratio2);
 
+% loss = real(loss);
+% df(1:Nx*Ny) = real(dfphase(:)) * ratio1;
+% df(Nx*Ny+1:end) = real(dfsource(:))* ratio2;
+loss = gather(real(loss));
+df(1:Nx*Ny) = gather(real(dfphase(:))) * ratio1;
+df(Nx*Ny+1:end) = gather(real(dfsource(:))* ratio2);
 end
 

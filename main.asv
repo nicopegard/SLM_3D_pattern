@@ -1,4 +1,4 @@
-tag = 'slmFocal_20';
+tag = 'slmFocal_5';
 
 
 %% Setup params
@@ -54,8 +54,6 @@ maskfun = @(zi)  generatePointMask( targets, radius, zi, Nx, Ny, psHolograph, us
 x0 = ones(2*Nx*Ny, 1) * 1e-10;
 % This sets a coherent light source.
 x0(end/2 + Nx*(Ny/2 +0.5)) = 1;
-
-
 tic;
 
 
@@ -65,18 +63,7 @@ ratio_phase = 1;
 ratio_source = 0;
 
 
-HStacks = zeros(Nx, Ny, numel(z));
-if useGPU
-    HStacks = gpuArray(HStacks);
-end
-for i = 1 : numel(z)
-    HStacks(:,:,i) = GenerateFresnelPropagationStack(Nx, Ny, z(i)-z(nfocus), lambda, psSLM, focal_SLM, useGPU);
-end
-kernelfun = @(x) HStacks(:,:,x);
-% kernelfun = @(i) GenerateFresnelPropagationStack(Nx, Ny, z(i)-z(nfocus), lambda, psSLM, focal_SLM, useGPU);
-
-
-f = @(x)SourceFunObj(x, z, Nx, Ny, thresholdh, thresholdl, maskfun, kernelfun, useGPU, ratio_phase, ratio_source);
+f = @(x)SourceFunObj(x, z, nfocus, lambda, psSLM, focal_SLM, Nx, Ny, thresholdh, thresholdl, maskfun,  useGPU, ratio_phase, ratio_source);
 %phase_source = minFunc(f, x0, options);
 
 
@@ -113,7 +100,7 @@ for i = 1:numel(z)
     imagez = fresnelProp(phase2, source2, HStack);
     Ividmeas(:,:,i) = imagez;
     imagesc(imagez);colormap gray;colorbar;title(sprintf('Distance z %d', z(i)));
-    caxis([0, 1e6]);
+    caxis([0, 5e6]);
     pause(0.1);
 end
 save(['source_phase_result_' tag '.mat'], 'source1', 'phase1', 'source2', 'phase2');

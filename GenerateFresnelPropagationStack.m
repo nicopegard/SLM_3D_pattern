@@ -1,4 +1,4 @@
-function [HStack]=GenerateFresnelPropagationStack(Nx,Ny,z, lambda, ps, f)
+function [HStack]=GenerateFresnelPropagationStack(Nx,Ny,z, lambda, ps, f, useGPU)
 % Lambda, ps, z has unit meter.
 % z is the distance from focal plane.
 % lambda is wavelength
@@ -7,6 +7,10 @@ function [HStack]=GenerateFresnelPropagationStack(Nx,Ny,z, lambda, ps, f)
 cx=[1:Nx] - (floor(Nx/2)+1);
 cy=[1:Ny] - (floor(Ny/2)+1);
 
+
+if useGPU
+    cx = gpuArray(cx); cy = gpuArray(cy);
+end
 
 
 [us, vs]=ndgrid(cx, cy);

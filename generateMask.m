@@ -10,9 +10,11 @@ function [ mask ] = generateMask( targets, radius, zi, Nx, Ny, ps, useGPU)
 [n, ~] = size(targets);
 cx=[1:Nx] - (floor(Nx/2)+1);
 cy=[1:Ny] - (floor(Ny/2)+1);
+
 if useGPU
     cx = gpuArray(cx);cy = gpuArray(cy);
 end
+
 [us, vs]=ndgrid(cx, cy);
 us = us * ps; vs = vs * ps;
 
