@@ -14,12 +14,7 @@ Nx = 300;       % Number of pixels in X direction
 Ny = 400;       % Number of pixels in Y direction
 useGPU = 0;     % Use GPU to accelerate computation. Effective when Nx, Ny is large (e.g. 600*800).
 focal_SLM = 0.2; % focal length of the lens after slm.
-% Please note that this program does not take into account of subsampling
-% issues. Instead, it assumes that the SLM has the same resolution and 
-% size as the reconstructed images in 3D region. i.e. the SLM is right
-% before the objective lens. I think this assumption can be satisfied by
-% magnify/minify SLM using an optical system. We can discuss if this needs
-% to be changed. (Jingzhao)
+
 
 z = [400 :4: 600] * 1e-6 * resolutionScale;   % Depth level requested in 3D region.
 nfocus = 20;                % z(nfocus) denotes the depth of the focal plane.
@@ -75,29 +70,32 @@ lb = -inf(2*Nx*Ny, 1);
 lb(end/2+1:end) = 0;
 ub = inf(2*Nx*Ny, 1);
 nonlcon = [];
-phase_source = fmincon(f,x0,[],[],[],[],lb,ub,nonlcon,matlab_options);
+phase_source1 = fmincon(f,x0,[],[],[],[],lb,ub,nonlcon,matlab_options);
 
 
-% The following part optimizes phase and source at the same time.
-% ratio_phase = 1;
-% ratio_source = 1; 
-% f = @(x)SourceFunObj(x, z, nfocus, lambda, psSLM, focal_SLM, Nx, Ny, thresholdh, thresholdl, maskfun,  useGPU, ratio_phase, ratio_source);
-% %phase_source = minFunc(f, phase_source, options);
-% phase_source = fmincon(f,phase_source,[],[],[],[],lb,ub,nonlcon,matlab_options);
+phase1 = reshape(phase_source2(1:Nx*Ny), [Nx, Ny]);
+source1 = reshape(phase_source2(Nx*Ny+1:end), [Nx, Ny]);
+%The following part optimizes phase and source at the same time.
+ratio_phase = 1;
+ratio_source = 1; 
+f = @(x)SourceFunObj(x, z, nfocus, lambda, psSLM, focal_SLM, Nx, Ny, thresholdh, thresholdl, maskfun,  useGPU, ratio_phase, ratio_source);
+%phase_source = minFunc(f, phase_source, options);
+phase_source2 = fmincon(f,phase_source1,[],[],[],[],lb,ub,nonlcon,matlab_options);
 toc;
 
-phase = reshape(phase_source(1:Nx*Ny), [Nx, Ny]);
-source = reshape(phase_source(Nx*Ny+1:end), [Nx, Ny]);
+
+phase2 = reshape(phase_source2(1:Nx*Ny), [Nx, Ny]);
+source2 = reshape(phase_source2(Nx*Ny+1:end), [Nx, Ny]);
+
 
 %% plot
- 
 Ividmeas = zeros(Nx, Ny, numel(z));
 figure();
 for i = 1:numel(z)
     HStack = GenerateFresnelPropagationStack(Nx,Ny,z(i) - z(nfocus), lambda, psSLM, focal_SLM);
-    imagez = fresnelProp(phase, source, HStack);
+    imagez = fresnelProp(phase2, source2, HStack);
     Ividmeas(:,:,i) = imagez;
     imagesc(imagez);colormap gray;colorbar;title(sprintf('Distance z %d', z(i)));
-    caxis([0, 5e6]);
+    caxis([0, 5e5]);
     pause(0.1);
 end
