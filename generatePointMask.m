@@ -1,4 +1,4 @@
-function [ mask ] = generatePointMask( targets, radius, zi, Nx, Ny, ps, useGPU)
+function [ mask ] = generatePointMask( targets, radius, zi, Nx, Ny, psx, psy, useGPU)
 % GENERATEMASK targets is a list of triple tuple [x,y,z; ...]. (0,0, z')
 % is at the center. z' and vector z is within the same scale. All have
 % unit meter.
@@ -18,7 +18,7 @@ else
     mask = zeros(Nx, Ny);
 end
 [us, vs]=ndgrid(cx, cy);
-us = us * ps; vs = vs * ps;
+us = us * psx; vs = vs * psy;
 
 for k = 1:n
     coords = targets(k , :);

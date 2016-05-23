@@ -1,33 +1,36 @@
-tag = 'slmFocal_20';
+clear all;
+tag = 'slmFocal_20_600by800';
 
 
 %% Setup params
 % All length value has unit meter in this file.
 % The 3d region is behind lens after SLM. 
-% Since there is tube lens and objective lens after the the region. We make
-% the resolution 20 times that of the region after objective lens to
-% account for the demagnification.
+
 addpath(genpath('minFunc_2012'))
 
-resolutionScale = 20; % The demagnification scale of tubelens and objective.
+resolutionScale = 20; % The demagnification scale of tubelens and objective. f_tube/f_objective
 lambda = 1e-6;  % Wavelength
-psHolograph = 2e-6 * resolutionScale;      % Pixel Size (resolution) at the scattered 3D region
-psSLM = 40e-6;      % Pixel Size (resolution) at the scattered 3D region
-Nx = 300;       % Number of pixels in X direction
-Ny = 400;       % Number of pixels in Y direction
-useGPU = 1;     % Use GPU to accelerate computation. Effective when Nx, Ny is large (e.g. 600*800).
 focal_SLM = 0.2; % focal length of the lens after slm.
+psSLM = 20e-6;      % Pixel Size (resolution) at the scattered 3D region
+Nx = 600;       % Number of pixels in X direction
+Ny = 800;       % Number of pixels in Y direction
 
 
-z = [400 :4: 600] * 1e-6 * resolutionScale;   % Depth level requested in 3D region.
+psXHolograph = lambda * focal_SLM/ psSLM / resolutionScale / Nx;      % Pixel Size (resolution) at the scattered 3D region
+psYHolograph = lambda * focal_SLM/ psSLM / resolutionScale / Ny;      % Pixel Size (resolution) at the scattered 3D region
+
+useGPU = 1;     % Use GPU to accelerate computation. Effective when Nx, Ny is large (e.g. 600*800).
+
+
+z = [400 :4: 600] * 1e-6 ;   % Depth level requested in 3D region.
 nfocus = 20;                % z(nfocus) denotes the depth of the focal plane.
 thresholdh = 20000000;          % Intensity required to activate neuron.
 thresholdl = 0;             % Intensity required to not to activate neuron.
 
 %% Point Targets
-radius = 10 * 1e-6 * resolutionScale; % Radius around the point.
-targets = [0,0,450; 100, 100, 500; -100,-200,550;] * 1e-6 * resolutionScale; % Points where we want the intensity to be high.
-maskfun = @(zi)  generatePointMask( targets, radius, zi, Nx, Ny, psHolograph, useGPU);
+radius = 10 * 1e-6 ; % Radius around the point.
+targets = [150,150,450; 0, 0, 500; -150,-150,550;] * 1e-6 ; % Points where we want the intensity to be high.
+maskfun = @(zi)  generatePointMask( targets, radius, zi, Nx, Ny, psXHolograph,psYHolograph, useGPU);
 
 
 %% Complex Target
@@ -70,10 +73,10 @@ if useGPU
     HStacks = gpuArray(HStacks);
 end
 for i = 1 : numel(z)
-    HStacks(:,:,i) = GenerateFresnelPropagationStack(Nx, Ny, z(i)-z(nfocus), lambda, psSLM, focal_SLM, useGPU);
+    HStacks(:,:,i) = GenerateFresnelPropagationStack(Nx, Ny, z(i)-z(nfocus), lambda, psXHolograph,psYHolograph, useGPU);
 end
 kernelfun = @(x) HStacks(:,:,x);
-% kernelfun = @(i) GenerateFresnelPropagationStack(Nx, Ny, z(i)-z(nfocus), lambda, psSLM, focal_SLM, useGPU);
+% kernelfun = @(i) GenerateFresnelPropagationStack(Nx, Ny, z(i)-z(nfocus), lambda,psXHolograph,psYHolograph, focal_SLM, useGPU);
 
 
 f = @(x)SourceFunObj(x, z, Nx, Ny, thresholdh, thresholdl, maskfun, kernelfun, useGPU, ratio_phase, ratio_source);
@@ -81,7 +84,7 @@ f = @(x)SourceFunObj(x, z, Nx, Ny, thresholdh, thresholdl, maskfun, kernelfun, u
 
 
 matlab_options = optimoptions('fmincon','GradObj','on', 'display', 'iter', ...
-    'algorithm','interior-point','Hessian','lbfgs', 'MaxIter', 30);
+    'algorithm','interior-point','Hessian','lbfgs', 'MaxFunEvals', 50, 'MaxIter', 30);
 lb = -inf(2*Nx*Ny, 1);
 lb(end/2+1:end) = 0;
 ub = inf(2*Nx*Ny, 1);
@@ -89,12 +92,12 @@ nonlcon = [];
 phase_source1 = fmincon(f,x0,[],[],[],[],lb,ub,nonlcon,matlab_options);
 
 
-phase1 = reshape(phase_source2(1:Nx*Ny), [Nx, Ny]);
-source1 = reshape(phase_source2(Nx*Ny+1:end), [Nx, Ny]);
+phase1 = reshape(phase_source1(1:Nx*Ny), [Nx, Ny]);
+source1 = reshape(phase_source1(Nx*Ny+1:end), [Nx, Ny]);
 %The following part optimizes phase and source at the same time.
 ratio_phase = 1;
 ratio_source = 1; 
-f = @(x)SourceFunObj(x, z, nfocus, lambda, psSLM, focal_SLM, Nx, Ny, thresholdh, thresholdl, maskfun,  useGPU, ratio_phase, ratio_source);
+f = @(x)SourceFunObj(x, z, Nx, Ny, thresholdh, thresholdl, maskfun, kernelfun, useGPU, ratio_phase, ratio_source);
 %phase_source = minFunc(f, phase_source, options);
 phase_source2 = fmincon(f,phase_source1,[],[],[],[],lb,ub,nonlcon,matlab_options);
 toc;
@@ -109,11 +112,13 @@ Ividmeas = zeros(Nx, Ny, numel(z));
 usenoGPU = 0;
 figure();
 for i = 1:numel(z)
-    HStack = GenerateFresnelPropagationStack(Nx,Ny,z(i) - z(nfocus), lambda, psSLM, focal_SLM, usenoGPU);
+    HStack = GenerateFresnelPropagationStack(Nx,Ny,z(i) - z(nfocus), lambda, psXHolograph,psYHolograph, usenoGPU);
     imagez = fresnelProp(phase2, source2, HStack);
     Ividmeas(:,:,i) = imagez;
-    imagesc(imagez);colormap gray;colorbar;title(sprintf('Distance z %d', z(i)));
-    caxis([0, 1e6]);
+    imagesc(imagez);colormap gray;title(sprintf('Distance z %d', z(i)));
+    caxis([0, 5e5]);
+    filename = sprintf('pointTarget%d.png', i);
+    print(['data/' filename], '-dpng')
     pause(0.1);
 end
 save(['source_phase_result_' tag '.mat'], 'source1', 'phase1', 'source2', 'phase2');
