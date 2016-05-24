@@ -28,18 +28,18 @@ thresholdh = 20000000;          % Intensity required to activate neuron.
 thresholdl = 0;             % Intensity required to not to activate neuron.
 
 %% Point Targets
-% radius = 10 * 1e-6 ; % Radius around the point.
-% targets = [150,150,450; 0, 0, 500; -150,-150,550;] * 1e-6 ; % Points where we want the intensity to be high.
-% maskfun = @(zi)  generatePointMask( targets, radius, zi, Nx, Ny, psXHolograph,psYHolograph, useGPU);
+radius = 10 * 1e-6 ; % Radius around the point.
+targets = [150,150,450; 0, 0, 500; -150,-150,550;] * 1e-6 ; % Points where we want the intensity to be high.
+maskfun = @(zi)  generatePointMask( targets, radius, zi, Nx, Ny, psXHolograph,psYHolograph, useGPU);
 
 
 %% Complex Target
-load('largeAB');
-zrange1 = [450,480] * 1e-6;
-zrange2 = [550,580] * 1e-6;
-
-maskfun = @(zi) generateComplexMask( zi, Nx, Ny, maskA, zrange1, maskB, zrange2);
-
+% load('largeAB');
+% zrange1 = [450,480] * 1e-6;
+% zrange2 = [550,580] * 1e-6;
+% 
+% maskfun = @(zi) generateComplexMask( zi, Nx, Ny, maskA, zrange1, maskB, zrange2);
+% 
 
 
 %% Optimization
@@ -95,17 +95,18 @@ phase_source1 = fmincon(f,x0,[],[],[],[],lb,ub,nonlcon,matlab_options);
 
 phase1 = reshape(phase_source1(1:Nx*Ny), [Nx, Ny]);
 source1 = reshape(phase_source1(Nx*Ny+1:end), [Nx, Ny]);
-%The following part optimizes phase and source at the same time.
-ratio_phase = 1;
-ratio_source = 1; 
-f = @(x)SourceFunObj(x, z, Nx, Ny, thresholdh, thresholdl, maskfun, kernelfun, useGPU, ratio_phase, ratio_source);
-%phase_source = minFunc(f, phase_source, options);
-phase_source2 = fmincon(f,phase_source1,[],[],[],[],lb,ub,nonlcon,matlab_options);
-toc;
-
-
-phase2 = reshape(phase_source2(1:Nx*Ny), [Nx, Ny]);
-source2 = reshape(phase_source2(Nx*Ny+1:end), [Nx, Ny]);
+hologram = floor(mod(phase1, 2*pi)/2/pi * 255);
+%% The following part optimizes phase and source at the same time.
+% ratio_phase = 1;
+% ratio_source = 1; 
+% f = @(x)SourceFunObj(x, z, Nx, Ny, thresholdh, thresholdl, maskfun, kernelfun, useGPU, ratio_phase, ratio_source);
+% %phase_source = minFunc(f, phase_source, options);
+% phase_source2 = fmincon(f,phase_source1,[],[],[],[],lb,ub,nonlcon,matlab_options);
+% toc;
+% 
+% 
+% phase2 = reshape(phase_source2(1:Nx*Ny), [Nx, Ny]);
+% source2 = reshape(phase_source2(Nx*Ny+1:end), [Nx, Ny]);
 
 
 %% plot
@@ -123,7 +124,7 @@ for i = 1:numel(z)
 %     print(['data/' filename], '-dpng')
     pause(0.1);
 end
-save(['source_phase_result_' tag '.mat'], 'source1', 'phase1', 'source2', 'phase2');
+save(['source_phase_result_' tag '.mat'], 'source1', 'phase1', 'source2', 'phase2', 'hologram');
 
 
 
