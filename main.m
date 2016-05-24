@@ -102,12 +102,12 @@ hologram = floor(mod(phase1, 2*pi)/2/pi * 255);
 % f = @(x)SourceFunObj(x, z, Nx, Ny, thresholdh, thresholdl, maskfun, kernelfun, useGPU, ratio_phase, ratio_source);
 % %phase_source = minFunc(f, phase_source, options);
 % phase_source2 = fmincon(f,phase_source1,[],[],[],[],lb,ub,nonlcon,matlab_options);
-% toc;
 % 
 % 
 % phase2 = reshape(phase_source2(1:Nx*Ny), [Nx, Ny]);
 % source2 = reshape(phase_source2(Nx*Ny+1:end), [Nx, Ny]);
 
+toc;
 
 %% plot
 Ividmeas = zeros(Nx, Ny, numel(z));
@@ -124,7 +124,7 @@ for i = 1:numel(z)
 %     print(['data/' filename], '-dpng')
     pause(0.1);
 end
-save(['source_phase_result_' tag '.mat'], 'source1', 'phase1', 'source2', 'phase2', 'hologram');
+%save(['source_phase_result_' tag '.mat'], 'source1', 'phase1', 'source2', 'phase2', 'hologram');
 
 
 
