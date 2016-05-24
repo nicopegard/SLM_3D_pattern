@@ -1,5 +1,5 @@
 clear all;
-tag = 'slmFocal_20_600by800';
+tag = 'slmFocal_20_600by800_AB';
 
 
 %% Setup params
@@ -28,17 +28,17 @@ thresholdh = 20000000;          % Intensity required to activate neuron.
 thresholdl = 0;             % Intensity required to not to activate neuron.
 
 %% Point Targets
-radius = 10 * 1e-6 ; % Radius around the point.
-targets = [150,150,450; 0, 0, 500; -150,-150,550;] * 1e-6 ; % Points where we want the intensity to be high.
-maskfun = @(zi)  generatePointMask( targets, radius, zi, Nx, Ny, psXHolograph,psYHolograph, useGPU);
+% radius = 10 * 1e-6 ; % Radius around the point.
+% targets = [150,150,450; 0, 0, 500; -150,-150,550;] * 1e-6 ; % Points where we want the intensity to be high.
+% maskfun = @(zi)  generatePointMask( targets, radius, zi, Nx, Ny, psXHolograph,psYHolograph, useGPU);
 
 
 %% Complex Target
-% load('complexAB');
-% zrange1 = [450,480] * 1e-6;
-% zrange2 = [550,580] * 1e-6;
-% 
-% maskfun = @(zi) generateComplexMask( zi, Nx, Ny, maskA, zrange1, maskB, zrange2);
+load('largeAB');
+zrange1 = [450,480] * 1e-6;
+zrange2 = [550,580] * 1e-6;
+
+maskfun = @(zi) generateComplexMask( zi, Nx, Ny, maskA, zrange1, maskB, zrange2);
 
 
 
@@ -57,7 +57,8 @@ maskfun = @(zi)  generatePointMask( targets, radius, zi, Nx, Ny, psXHolograph,ps
 x0 = ones(2*Nx*Ny, 1) * 1e-10;
 % This sets a coherent light source.
 x0(end/2 + Nx*(Ny/2 +0.5)) = 1;
-
+% x0(Nx*Ny+1:end) = randn([Nx*Ny, 1])/Nx + 1/Nx/Ny;
+% x0 = x0 .* (x0>0) + 1/Nx/Ny *(x0<0);
 
 tic;
 
@@ -113,12 +114,18 @@ usenoGPU = 0;
 figure();
 for i = 1:numel(z)
     HStack = GenerateFresnelPropagationStack(Nx,Ny,z(i) - z(nfocus), lambda, psXHolograph,psYHolograph, usenoGPU);
-    imagez = fresnelProp(phase2, source2, HStack);
+    imagez = fresnelProp(phase1, source1, HStack);
     Ividmeas(:,:,i) = imagez;
     imagesc(imagez);colormap gray;title(sprintf('Distance z %d', z(i)));
-    caxis([0, 5e5]);
-    filename = sprintf('pointTarget%d.png', i);
-    print(['data/' filename], '-dpng')
+    colorbar;
+    caxis([0, 5e6]);
+%     filename = sprintf('pointTarget%d.png', i);
+%     print(['data/' filename], '-dpng')
     pause(0.1);
 end
 save(['source_phase_result_' tag '.mat'], 'source1', 'phase1', 'source2', 'phase2');
+
+
+
+
+
