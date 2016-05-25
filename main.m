@@ -96,6 +96,11 @@ phase_source1 = fmincon(f,x0,[],[],[],[],lb,ub,nonlcon,matlab_options);
 phase1 = reshape(phase_source1(1:Nx*Ny), [Nx, Ny]);
 source1 = reshape(phase_source1(Nx*Ny+1:end), [Nx, Ny]);
 hologram = floor(mod(phase1, 2*pi)/2/pi * 255);
+
+f = figure(1)
+imagesc(hologram);
+title('SLM hologram');
+
 %% The following part optimizes phase and source at the same time.
 % ratio_phase = 1;
 % ratio_source = 1; 
